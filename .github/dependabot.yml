@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/arun0009lib"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "docker"
+    directory: "/arun0009lib"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "docker-compose"
+    directory: "/arun0009lib"
+    schedule:
+      interval: "daily"
