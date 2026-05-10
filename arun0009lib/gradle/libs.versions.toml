@@ -2,7 +2,7 @@
 jvm = "25"
 mapstruct = "1.6.3"
 lombok-mapstruct-binding = "0.2.0"
-testcontainers = "1.21.1"
+testcontainers = "2.0.5"
 idempotent-rds = "2.4.1"
 springdoc-openapi = "3.0.3"
 spring-boot-plugin = "4.0.6"

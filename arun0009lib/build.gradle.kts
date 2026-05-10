@@ -43,7 +43,7 @@ dependencies {
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
 	runtimeOnly("org.postgresql:postgresql")
 	testImplementation("org.springframework.boot:spring-boot-testcontainers")
-	testImplementation(platform("org.testcontainers:testcontainers-bom:1.21.1"))
+	testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
 	testImplementation("org.springframework.boot:spring-boot-starter-liquibase-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
