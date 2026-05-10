@@ -1,0 +1,72 @@
+x-app-watch: &app-watch
+  watch:
+    - path: ./src
+      action: rebuild
+    - path: ./build.gradle.kts
+      action: rebuild
+    - path: ./settings.gradle.kts
+      action: rebuild
+    - path: ./Dockerfile
+      action: rebuild
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: not_a_secret
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  app1:
+    image: arun0009lib-app
+    build: .
+    profiles: ["app"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: not_a_secret
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8080'"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+      start_period: 20s
+    develop: *app-watch
+
+  app2:
+    image: arun0009lib-app
+    build: .
+    profiles: ["app"]
+    depends_on:
+      app1:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: not_a_secret
+    develop: *app-watch
+
+  traefik:
+    image: traefik:v3.1
+    profiles: ["app"]
+    command:
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+      - "--entrypoints.web.address=:8080"
+      - "--accesslog=true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    depends_on:
+      - app1
+      - app2

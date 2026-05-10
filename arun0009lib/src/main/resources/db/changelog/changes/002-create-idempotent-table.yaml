@@ -1,0 +1,42 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-idempotent-table
+      author: copilot
+      changes:
+        - createTable:
+            tableName: idempotent
+            columns:
+              - column:
+                  name: key_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: process_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expiration_time_millis
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: response
+                  type: text
+        - addPrimaryKey:
+            tableName: idempotent
+            columnNames: key_id, process_name
+            constraintName: pk_idempotent
+        - createIndex:
+            tableName: idempotent
+            indexName: idx_idempotent_expiration
+            columns:
+              - column:
+                  name: expiration_time_millis
+

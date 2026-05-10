@@ -1,0 +1,24 @@
+[versions]
+jvm = "25"
+mapstruct = "1.6.3"
+lombok-mapstruct-binding = "0.2.0"
+testcontainers = "1.21.1"
+idempotent-rds = "2.4.1"
+springdoc-openapi = "3.0.3"
+spring-boot-plugin = "4.0.6"
+spring-dependency-management-plugin = "1.1.7"
+graalvm-native-plugin = "0.11.5"
+
+[libraries]
+mapstruct = { module = "org.mapstruct:mapstruct", version.ref = "mapstruct" }
+mapstruct-processor = { module = "org.mapstruct:mapstruct-processor", version.ref = "mapstruct" }
+lombok-mapstruct-binding = { module = "org.projectlombok:lombok-mapstruct-binding", version.ref = "lombok-mapstruct-binding" }
+springdoc-openapi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc-openapi" }
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot-plugin" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management-plugin" }
+graalvm-native = { id = "org.graalvm.buildtools.native", version.ref = "graalvm-native-plugin" }
+

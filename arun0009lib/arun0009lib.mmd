@@ -1,0 +1,13 @@
+gantt
+    title Idempotency demo — three calls, same Idempotency-Key
+    dateFormat  s
+    axisFormat  %S s
+
+    section Call #1
+    POST /orders/idempotent (delayMillis=5000)   :a1, 0, 5s
+
+    section Call #2
+    POST /orders/idempotent (same key, in flight) :a2, 1, 4s
+
+    section Call #3
+    POST /orders/idempotent (same key, cached)    :a3, 6, 1s

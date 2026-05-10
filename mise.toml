@@ -1,0 +1,5 @@
+[tools]
+python = "latest"
+uv = "latest"
+java = "temurin-25"
+gradle = "9.4.1"

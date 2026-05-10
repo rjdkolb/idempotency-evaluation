@@ -1,0 +1,82 @@
+### Test without idempotency
+POST http://localhost:8080/orders?delayMillis=100
+Idempotency-Key: {{$uuid}}
+Content-Type: application/json
+
+{
+  "customerOrderReference": "co-{{$timestamp}}"
+}
+
+
+
+### Idempotent call #1 with 5000 ms delay
+< {%
+// Generate unique values in script context (template placeholders are not expanded here).
+const unique = Date.now() + "-" + Math.floor(Math.random() * 1000000);
+client.global.set("idemKeyFromSetup", "idemp-" + unique);
+client.global.set("orderRefFromSetup", "orderRef-" + unique);
+
+client.log("setup idemKey=" + client.global.get("idemKeyFromSetup"));
+client.log("setup orderRef=" + client.global.get("orderRefFromSetup"));
+%}
+POST http://localhost:8080/orders/idempotent?delayMillis=5000
+Idempotency-Key: {{idemKeyFromSetup}}
+Content-Type: application/json
+
+{
+  "customerOrderReference": "{{orderRefFromSetup}}"
+}
+
+> {%
+    client.global.set("firstCustomerOrderReference", response.body.customerOrderReference);
+    client.global.set("firstSupplierOrderReference", response.body.supplierOrderReference);
+
+    client.log("call#1 idemKey=" + client.global.get("idemKeyFromSetup"));
+    client.log("call#1 customerOrderReference=" + client.global.get("orderRefFromSetup"));
+    client.log("call#1 supplierOrderReference=" + client.global.get("firstSupplierOrderReference"));
+%}
+
+### Idempotent call #2 while #1 is in flight (same key + same reference)
+POST http://localhost:8080/orders/idempotent?delayMillis=0
+Idempotency-Key: {{idemKeyFromSetup}}
+Content-Type: application/json
+
+{
+  "customerOrderReference": "{{orderRefFromSetup}}"
+}
+
+> {%
+    client.log("call#2 idemKey=" + client.global.get("idemKeyFromSetup"));
+    client.log("call#2 customerOrderReference=" + client.global.get("orderRefFromSetup"));
+    client.log("call#2 supplierOrderReference=" + client.global.get("firstSupplierOrderReference"));
+
+  client.test("Second call returns same customerOrderReference", function () {
+    client.assert(
+      response.body.customerOrderReference === client.global.get("firstCustomerOrderReference"),
+      "customerOrderReference differs from first call"
+    );
+  });
+%}
+
+### Idempotent call #3 after call #1 and #2 are done (same key + same reference)
+POST http://localhost:8080/orders/idempotent
+Idempotency-Key: {{idemKeyFromSetup}}
+Content-Type: application/json
+
+{
+  "customerOrderReference": "{{orderRefFromSetup}}"
+}
+
+> {%
+  client.test("Third call returns same customerOrderReference", function () {
+    client.assert(
+      response.body.customerOrderReference === client.global.get("firstCustomerOrderReference"),
+      "customerOrderReference differs from first call"
+    );
+  });
+
+%}
+
+
+### List all
+GET http://localhost:8080/orders

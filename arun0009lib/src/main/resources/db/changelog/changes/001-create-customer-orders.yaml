@@ -1,0 +1,28 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-customer-orders
+      author: copilot
+      changes:
+        - createTable:
+            tableName: customer_order
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_customer_order
+              - column:
+                  name: customer_order_reference
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: supplier_order_reference
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+
