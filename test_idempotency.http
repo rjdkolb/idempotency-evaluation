@@ -1,5 +1,5 @@
 ### Test without idempotency
-POST http://localhost:8080/orders?delayMillis=100
+POST {{host}}/orders?delayMillis=100
 Idempotency-Key: {{$uuid}}
 Content-Type: application/json
 
@@ -19,7 +19,7 @@ client.global.set("orderRefFromSetup", "orderRef-" + unique);
 client.log("setup idemKey=" + client.global.get("idemKeyFromSetup"));
 client.log("setup orderRef=" + client.global.get("orderRefFromSetup"));
 %}
-POST http://localhost:8080/orders/idempotent?delayMillis=5000
+POST {{host}}/orders/idempotent?delayMillis=5000
 Idempotency-Key: {{idemKeyFromSetup}}
 Content-Type: application/json
 
@@ -37,7 +37,7 @@ Content-Type: application/json
 %}
 
 ### Idempotent call #2 while #1 is in flight (same key + same reference)
-POST http://localhost:8080/orders/idempotent?delayMillis=0
+POST {{host}}/orders/idempotent?delayMillis=0
 Idempotency-Key: {{idemKeyFromSetup}}
 Content-Type: application/json
 
@@ -59,7 +59,7 @@ Content-Type: application/json
 %}
 
 ### Idempotent call #3 after call #1 and #2 are done (same key + same reference)
-POST http://localhost:8080/orders/idempotent
+POST {{host}}/orders/idempotent
 Idempotency-Key: {{idemKeyFromSetup}}
 Content-Type: application/json
 
@@ -79,4 +79,4 @@ Content-Type: application/json
 
 
 ### List all
-GET http://localhost:8080/orders
+GET {{host}}/orders

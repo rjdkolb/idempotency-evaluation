@@ -63,6 +63,57 @@ It binds to `http://localhost:8080`.
 This is how it responds
 ![arun0009lib demo timeline](/arun0009lib/arun0009lib.png)
 
+## aws-powertools
+
+AWS API Gateway HTTP API + Lambda (Java 25), using AWS Lambda Powertools'
+`@Idempotent` annotation backed by DynamoDB. Provisioned via AWS SAM.
+
+```zsh
+cd aws-powertools
+./deploy.sh
+```
+
+`deploy.sh` writes the deployed HTTP API base URL to `aws-powertools/url.txt`.
+To tear down:
+
+```zsh
+cd aws-powertools
+./destroy.sh
+```
+
+This is how it responds:
+![aws-powertools demo timeline](/aws-powertools/aws-powertools.png)
+
+HA is provided implicitly by Lambda's concurrent execution environments
+(rather than two replicas behind Traefik, as in `arun0009lib`).
+
+# Comparison against the IETF Idempotency-Key spec
+
+Both implementations are evaluated against
+[draft-ietf-httpapi-idempotency-key-header-01](https://www.ietf.org/archive/id/draft-ietf-httpapi-idempotency-key-header-01.html).
+
+| IETF spec requirement | Spec | `arun0009lib` | `aws-powertools` |
+|---|---|---|---|
+| **Idempotency-Key header** (§2) | Client sends a unique string per request | ✅ | ✅ |
+| **Missing key → 400** (§3.1) | SHOULD reply 400 | ⚠️ 200 — `hashKey=true` falls back to body hash | ⚠️ 200 — falls back to SHA-256 of body |
+| **Completed duplicate → replay** (§3.1) | SHOULD return original result | ✅ replays 200 | ✅ replays 200 |
+| **In-flight duplicate → 409** (§3.1) | MUST respond with conflict | ❌ blocks until first completes, then replays 200 | ✅ 409 immediately |
+| **Key reuse, different payload → 422** (§3.1) | SHOULD reply 422 | ❌ not validated | ❌ replays original, ignores payload change |
+| **Payload fingerprint** (§2.1) | MAY use to detect mismatched payloads | ❌ not implemented | ❌ not implemented |
+| **Key expiration** (§2) | MAY enforce, SHOULD publish policy | ✅ `PT1H` | ✅ 1 hour (DynamoDB TTL) |
+| **HA / multi-instance** | — | ✅ 2 replicas behind Traefik | ✅ Lambda concurrency |
+
+### Key takeaways
+
+- **Neither implementation validates payload fingerprints**, so reusing a key
+  with a different body silently replays the original response instead of
+  returning `422`.
+- **Missing `Idempotency-Key`**: the spec says `400`, but both implementations
+  fall back to a body hash — effectively making the key optional.
+- **In-flight duplicates**: the spec says the server MUST respond with a
+  conflict error. `aws-powertools` does this (`409`); `arun0009lib` blocks
+  instead, which is arguably better UX but diverges from the spec.
+
 # Testing
 
 ## `test_idempotency.http`
@@ -71,8 +122,14 @@ In Intellij you can evaluate the http calls yourself.
 
 ## `test_idempotency.py`
 
-You can test automatically with the Python script
+You can test automatically with the Python script. By default it hits
+`http://localhost:8080`; override with `IDEMPOTENCY_BASE_URL` to test a
+deployed implementation.
 
 ```zsh
+# Against a local implementation (e.g. arun0009lib via docker compose):
 uv run test_idempotency.py
+
+# Against the deployed aws-powertools implementation:
+IDEMPOTENCY_BASE_URL=$(cat aws-powertools/url.txt) uv run test_idempotency.py
 ```

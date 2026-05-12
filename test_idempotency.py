@@ -12,6 +12,7 @@ Hits POST /orders/idempotent?delayMillis=5000 with two scenarios:
 An idempotent endpoint should return the same 200 response in both cases.
 """
 import asyncio
+import os
 import time
 import uuid
 
@@ -20,7 +21,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-URL = "http://localhost:8080/orders/idempotent"
+BASE_URL = os.environ.get("IDEMPOTENCY_BASE_URL", "http://localhost:8080").rstrip("/")
+URL = f"{BASE_URL}/orders/idempotent"
 DELAY_MS = 5000
 N_DUPLICATES = 5
 
@@ -101,9 +103,11 @@ def show_results(title: str, results: list[dict]) -> None:
 
 def show_app_not_started(error: Exception) -> None:
     console.print(Panel(
-        f"[bold red]No implementation is running at http://localhost:8080.[/bold red]\n\n"
+        f"[bold red]No implementation is running at {BASE_URL}.[/bold red]\n\n"
         f"Start one (e.g. arun0009lib) with:\n"
         f"  [bold]cd arun0009lib && docker compose up --build[/bold]\n\n"
+        f"Or point at a deployed implementation:\n"
+        f"  [bold]IDEMPOTENCY_BASE_URL=https://… uv run test_idempotency.py[/bold]\n\n"
         f"[dim]{error}[/dim]",
         title="App not started",
         border_style="red",
@@ -125,7 +129,7 @@ async def main() -> int:
     async with httpx.AsyncClient(timeout=30) as client:
         # 1. Check the harness is up before we start.
         try:
-            await client.get("http://localhost:8080/", timeout=3)
+            await client.get(f"{BASE_URL}/orders", timeout=15)
         except (httpx.ConnectError, httpx.TimeoutException) as exc:
             show_app_not_started(exc)
             return 2

@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Idempotency evaluation — AWS HTTP API + Lambda (Java 25) + DynamoDB
+
+Globals:
+  Function:
+    Runtime: java25
+    MemorySize: 1024
+    Timeout: 30
+
+Resources:
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: customerOrderReference
+          AttributeType: S
+      KeySchema:
+        - AttributeName: customerOrderReference
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  IdempotencyTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: expiration
+        Enabled: true
+
+  OrderHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/dist/lambda.zip
+      Handler: eval.lambda.OrderHandler::handleRequest
+      Environment:
+        Variables:
+          ORDERS_TABLE: !Ref OrdersTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+      Events:
+        GetOrders:
+          Type: HttpApi
+          Properties: { Path: /orders, Method: get }
+        PostOrders:
+          Type: HttpApi
+          Properties: { Path: /orders, Method: post }
+
+  IdempotentOrderHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/dist/lambda.zip
+      Handler: eval.lambda.IdempotentOrderHandler::handleRequest
+      Environment:
+        Variables:
+          ORDERS_TABLE: !Ref OrdersTable
+          IDEMPOTENCY_TABLE: !Ref IdempotencyTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref IdempotencyTable
+      Events:
+        PostIdempotent:
+          Type: HttpApi
+          Properties: { Path: /orders/idempotent, Method: post }
+
+Outputs:
+  HttpApiUrl:
+    Description: Base URL of the HTTP API
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"

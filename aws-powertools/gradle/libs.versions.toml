@@ -1,0 +1,26 @@
+[versions]
+jvm = "25"
+powertools = "2.3.0"
+aws-lambda-core = "1.3.0"
+aws-lambda-events = "3.16.1"
+aws-sdk = "2.34.5"
+jackson = "2.20.0"
+aspectj = "1.9.25"
+lombok = "1.18.46"
+spotless = "8.4.0"
+aspectj-plugin = "8.13.1"
+google-java-format = "1.30.0"
+
+[libraries]
+aws-lambda-core = { module = "com.amazonaws:aws-lambda-java-core", version.ref = "aws-lambda-core" }
+aws-lambda-events = { module = "com.amazonaws:aws-lambda-java-events", version.ref = "aws-lambda-events" }
+powertools-idempotency-dynamodb = { module = "software.amazon.lambda:powertools-idempotency-dynamodb", version.ref = "powertools" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+aws-sdk-dynamodb = { module = "software.amazon.awssdk:dynamodb", version.ref = "aws-sdk" }
+aws-sdk-url-connection = { module = "software.amazon.awssdk:url-connection-client", version.ref = "aws-sdk" }
+aspectjrt = { module = "org.aspectj:aspectjrt", version.ref = "aspectj" }
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
+
+[plugins]
+aspectj-weaving = { id = "io.freefair.aspectj.post-compile-weaving", version.ref = "aspectj-plugin" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

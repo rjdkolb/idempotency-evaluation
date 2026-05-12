@@ -1,0 +1,5 @@
+.gradle/
+build/
+.aws-sam/
+url.txt
+samconfig.local.toml
