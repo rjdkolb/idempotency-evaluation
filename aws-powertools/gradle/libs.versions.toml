@@ -1,6 +1,6 @@
 [versions]
 jvm = "25"
-powertools = "2.3.0"
+powertools = "2.10.0"
 aws-lambda-core = "1.4.0"
 aws-lambda-events = "3.16.1"
 aws-sdk = "2.44.4"
