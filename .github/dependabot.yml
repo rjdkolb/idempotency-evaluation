@@ -5,6 +5,11 @@ updates:
     schedule:
       interval: "daily"
 
+  - package-ecosystem: "gradle"
+    directory: "/aws-powertools"
+    schedule:
+      interval: "daily"
+
   - package-ecosystem: "docker"
     directory: "/arun0009lib"
     schedule:
@@ -14,3 +19,4 @@ updates:
     directory: "/arun0009lib"
     schedule:
       interval: "daily"
+
