@@ -4,19 +4,30 @@ updates:
     directory: "/arun0009lib"
     schedule:
       interval: "daily"
+    groups:
+      gradle-all:
+        patterns: ["*"]
 
   - package-ecosystem: "gradle"
     directory: "/aws-powertools"
     schedule:
       interval: "daily"
+    groups:
+      gradle-all:
+        patterns: ["*"]
 
   - package-ecosystem: "docker"
     directory: "/arun0009lib"
     schedule:
       interval: "daily"
+    groups:
+      docker-all:
+        patterns: ["*"]
 
   - package-ecosystem: "docker-compose"
     directory: "/arun0009lib"
     schedule:
       interval: "daily"
-
+    groups:
+      compose-all:
+        patterns: ["*"]
