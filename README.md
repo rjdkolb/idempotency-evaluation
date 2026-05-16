@@ -90,29 +90,36 @@ HA is provided implicitly by Lambda's concurrent execution environments
 # Comparison against the IETF Idempotency-Key spec
 
 Both implementations are evaluated against
-[draft-ietf-httpapi-idempotency-key-header-01](https://www.ietf.org/archive/id/draft-ietf-httpapi-idempotency-key-header-01.html).
+[draft-ietf-httpapi-idempotency-key-header-07](https://www.ietf.org/archive/id/draft-ietf-httpapi-idempotency-key-header-07.html)
+(the latest published revision, 2025-10-15).
 
-| IETF spec requirement | Spec | `arun0009lib` | `aws-powertools` |
-|---|---|---|---|
-| **Idempotency-Key header** (§2) | Client sends a unique string per request | ✅ | ✅ |
-| **Missing key → 400** (§3.1) | SHOULD reply 400 | ⚠️ 200 — `hashKey=true` falls back to body hash | ⚠️ 200 — falls back to SHA-256 of body |
-| **Completed duplicate → replay** (§3.1) | SHOULD return original result | ✅ replays 200 | ✅ replays 200 |
-| **In-flight duplicate → 409** (§3.1) | MUST respond with conflict | ❌ blocks until first completes, then replays 200 | ✅ 409 immediately |
-| **Key reuse, different payload → 422** (§3.1) | SHOULD reply 422 | ❌ not validated | ❌ replays original, ignores payload change |
-| **Payload fingerprint** (§2.1) | MAY use to detect mismatched payloads | ❌ not implemented | ❌ not implemented |
-| **Key expiration** (§2) | MAY enforce, SHOULD publish policy | ✅ `PT1H` | ✅ 1 hour (DynamoDB TTL) |
-| **HA / multi-instance** | — | ✅ 2 replicas behind Traefik | ✅ Lambda concurrency |
+| Requirement | RFC 2119 | § | `arun0009lib` | `aws-powertools` |
+|---|---|---|---|---|
+| `Idempotency-Key` is a Structured Header String | MUST | 2.1 | ✅ | ✅ |
+| Key not reused with different payload | MUST NOT | 2.2 | ❌ not validated | ❌ replays original, ignores payload |
+| Use a UUID or similar random identifier | RECOMMENDED | 2.2 | ✅ (client-side) | ✅ (client-side) |
+| Key expiration policy published | SHOULD | 2.3 | ✅ `PT1H` | ✅ 1 hour (DynamoDB TTL) |
+| Idempotency fingerprint | MAY | 2.4 | ❌ not implemented | ❌ not implemented |
+| Resource publishes idempotency specification | MUST | 2.5.2 | ⚠️ Swagger only | ⚠️ undocumented |
+| Server enforces idempotency | SHOULD | 2.5.2 | ✅ | ✅ |
+| First-time request processed normally | SHOULD | 2.6 | ✅ | ✅ |
+| Completed duplicate replays original | SHOULD | 2.6 | ✅ | ✅ |
+| Concurrent duplicate → resource conflict error | SHOULD | 2.6 | ❌ blocks until first completes, then replays 200 | ✅ 409 immediately |
+| Missing `Idempotency-Key` → `400` | SHOULD | 2.7 | ✅ 400 | ⚠️ 200 — falls back to SHA-256 of body |
+| Key reuse, different payload → `422` | SHOULD | 2.7 | ❌ not validated | ❌ replays original, ignores payload change |
+| HA / multi-instance | — | — | ✅ 2 replicas behind Traefik | ✅ Lambda concurrency |
 
 ### Key takeaways
 
-- **Neither implementation validates payload fingerprints**, so reusing a key
-  with a different body silently replays the original response instead of
-  returning `422`.
-- **Missing `Idempotency-Key`**: the spec says `400`, but both implementations
-  fall back to a body hash — effectively making the key optional.
-- **In-flight duplicates**: the spec says the server MUST respond with a
-  conflict error. `aws-powertools` does this (`409`); `arun0009lib` blocks
-  instead, which is arguably better UX but diverges from the spec.
+- **Neither implementation validates payload fingerprints** (§2.4 / §2.7), so
+  reusing a key with a different body silently replays the original response
+  instead of returning `422`.
+- **Missing `Idempotency-Key`**: §2.7 says `400`. `arun0009lib` complies;
+  `aws-powertools` falls back to a SHA-256 of the body, effectively making the
+  key optional.
+- **Concurrent duplicates**: §2.6 says the server SHOULD respond with a
+  resource-conflict error. `aws-powertools` does this (`409`); `arun0009lib`
+  blocks instead, which is arguably better UX but diverges from the spec.
 
 # Testing
 
@@ -122,14 +129,20 @@ In Intellij you can evaluate the http calls yourself.
 
 ## `test_idempotency.py`
 
-You can test automatically with the Python script. By default it hits
-`http://localhost:8080`; override with `IDEMPOTENCY_BASE_URL` to test a
-deployed implementation.
+A pytest suite with one test per draft-07 normative requirement. The
+RFC 2119 keyword and section number appear next to each test in the output,
+and known divergences are marked `xfail` so the suite stays exit-0 while
+still surfacing every mismatch.
+
+Pass `--impl` to label the run and pick up the right xfail set. By default
+the suite hits `http://localhost:8080`; override with `IDEMPOTENCY_BASE_URL`
+to test a deployed implementation.
 
 ```zsh
-# Against a local implementation (e.g. arun0009lib via docker compose):
-uv run test_idempotency.py
+# Against a local implementation (arun0009lib via docker compose):
+uv run test_idempotency.py --impl=arun0009lib -v
 
 # Against the deployed aws-powertools implementation:
-IDEMPOTENCY_BASE_URL=$(cat aws-powertools/url.txt) uv run test_idempotency.py
+IDEMPOTENCY_BASE_URL=$(cat aws-powertools/url.txt) \
+  uv run test_idempotency.py --impl=aws-powertools -v
 ```
