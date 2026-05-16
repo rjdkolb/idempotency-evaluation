@@ -3,3 +3,4 @@ python = "latest"
 uv = "latest"
 java = "temurin-25"
 gradle = "9.4.1"
+aws-sam = { version = "latest", symlink_bins = "true" }

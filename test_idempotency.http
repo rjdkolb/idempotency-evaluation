@@ -1,3 +1,5 @@
+# Assertions reference draft-ietf-httpapi-idempotency-key-header-07.
+
 ### Test without idempotency
 POST {{host}}/orders?delayMillis=100
 Idempotency-Key: {{$uuid}}
@@ -80,3 +82,61 @@ Content-Type: application/json
 
 ### List all
 GET {{host}}/orders
+
+
+### Missing Idempotency-Key → expect 400 (SHOULD §2.7)
+POST {{host}}/orders/idempotent
+Content-Type: application/json
+
+{
+  "customerOrderReference": "no-key-{{$timestamp}}"
+}
+
+> {%
+  client.test("Missing Idempotency-Key returns 400 (SHOULD §2.7)", function () {
+    client.assert(
+      response.status === 400,
+      "expected 400 for missing Idempotency-Key, got " + response.status
+    );
+  });
+%}
+
+
+### Same key, different payload → expect 422 (SHOULD §2.7 / MUST NOT §2.2)
+< {%
+const unique = Date.now() + "-" + Math.floor(Math.random() * 1000000);
+client.global.set("reuseKey", "reuse-" + unique);
+client.global.set("reuseRefA", "refA-" + unique);
+client.global.set("reuseRefB", "refB-" + unique);
+%}
+POST {{host}}/orders/idempotent
+Idempotency-Key: {{reuseKey}}
+Content-Type: application/json
+
+{
+  "customerOrderReference": "{{reuseRefA}}"
+}
+
+> {%
+  client.test("First call succeeds", function () {
+    client.assert(response.status === 200, "first call expected 200, got " + response.status);
+  });
+%}
+
+### Reuse key with a different payload — expect 422
+POST {{host}}/orders/idempotent
+Idempotency-Key: {{reuseKey}}
+Content-Type: application/json
+
+{
+  "customerOrderReference": "{{reuseRefB}}"
+}
+
+> {%
+  client.test("Reused key with different payload returns 422 (SHOULD §2.7)", function () {
+    client.assert(
+      response.status === 422,
+      "expected 422 for reused key with different payload, got " + response.status
+    );
+  });
+%}
