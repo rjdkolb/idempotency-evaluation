@@ -27,6 +27,7 @@ services:
 
   app1:
     image: arun0009lib-app
+    pull_policy: never
     build: .
     profiles: ["app"]
     depends_on:
@@ -46,6 +47,7 @@ services:
 
   app2:
     image: arun0009lib-app
+    pull_policy: never
     build: .
     profiles: ["app"]
     depends_on:

@@ -11,6 +11,10 @@ printed next to each outcome. Per-implementation known divergences are
 pre-marked ``xfail(strict=True)`` so the suite exits 0 while still
 surfacing every mismatch as XFAIL.
 
+All requests require HTTP Basic Auth; the username acts as the tenant
+marker. Tests in the "tenant" section verify that authentication and
+tenant isolation are enforced even though neither is in the IETF spec.
+
 Run:
     uv run test_idempotency.py --impl=arun0009lib -v
     IDEMPOTENCY_BASE_URL=$(cat aws-powertools/url.txt) \\
@@ -30,6 +34,8 @@ import pytest_asyncio
 
 BASE_URL = os.environ.get("IDEMPOTENCY_BASE_URL", "http://localhost:8080").rstrip("/")
 URL = f"{BASE_URL}/orders/idempotent"
+
+DEFAULT_AUTH = ("testuser", "ignored")
 
 IMPLS = ("arun0009lib", "aws-powertools")
 
@@ -77,7 +83,7 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     if session.config.option.collectonly:
         return
     try:
-        httpx.get(f"{BASE_URL}/orders", timeout=15)
+        httpx.get(f"{BASE_URL}/orders", auth=DEFAULT_AUTH, timeout=15)
     except (httpx.ConnectError, httpx.TimeoutException) as exc:
         print(
             f"\nNo implementation is running at {BASE_URL}.\n"
@@ -137,7 +143,7 @@ def pytest_report_teststatus(report, config):
 
 @pytest_asyncio.fixture
 async def client() -> AsyncIterator[httpx.AsyncClient]:
-    async with httpx.AsyncClient(timeout=30) as c:
+    async with httpx.AsyncClient(timeout=30, auth=DEFAULT_AUTH) as c:
         yield c
 
 
@@ -257,6 +263,67 @@ async def test_key_reuse_different_payload_returns_422(client: httpx.AsyncClient
     )
     assert second.status_code == 422, \
         f"expected 422 for reused key with different payload, got {second.status_code}: {second.text}"
+
+
+# ---------- tenant separation (non-IETF) ----------
+
+@pytest.mark.spec("SHOULD", "tenant")
+async def test_missing_auth_returns_401():
+    async with httpx.AsyncClient(timeout=30) as anon:
+        response = await anon.post(
+            URL, params={"delayMillis": 0},
+            headers={"Idempotency-Key": _key()},
+            json={"customerOrderReference": _ref()},
+        )
+    assert response.status_code == 401, \
+        f"expected 401 for missing auth, got {response.status_code}: {response.text}"
+    assert "supplierOrderReference" not in response.text, \
+        "401 response must not leak a cached idempotent body"
+
+
+@pytest.mark.spec("SHOULD", "tenant")
+async def test_different_tenants_same_key_not_replayed():
+    key = _key()
+    payload = {"customerOrderReference": _ref()}
+    async with httpx.AsyncClient(timeout=30, auth=("alice", "x")) as a, \
+               httpx.AsyncClient(timeout=30, auth=("bob", "x")) as b:
+        ra = await a.post(
+            URL, params={"delayMillis": 0},
+            headers={"Idempotency-Key": key}, json=payload,
+        )
+        rb = await b.post(
+            URL, params={"delayMillis": 0},
+            headers={"Idempotency-Key": key}, json=payload,
+        )
+    assert ra.status_code == 200, ra.text
+    assert rb.status_code == 200, rb.text
+    assert ra.json()["supplierOrderReference"] != rb.json()["supplierOrderReference"], \
+        "same Idempotency-Key from different tenants must not replay across tenants"
+
+
+@pytest.mark.spec("SHOULD", "tenant")
+async def test_list_orders_filtered_by_tenant():
+    ref_a, ref_b = _ref(), _ref()
+    async with httpx.AsyncClient(timeout=30, auth=("alice", "x")) as a, \
+               httpx.AsyncClient(timeout=30, auth=("bob", "x")) as b:
+        ca = await a.post(
+            f"{BASE_URL}/orders", params={"delayMillis": 0},
+            json={"customerOrderReference": ref_a},
+        )
+        assert ca.status_code == 200, ca.text
+        cb = await b.post(
+            f"{BASE_URL}/orders", params={"delayMillis": 0},
+            json={"customerOrderReference": ref_b},
+        )
+        assert cb.status_code == 200, cb.text
+        list_a = (await a.get(f"{BASE_URL}/orders")).json()
+        list_b = (await b.get(f"{BASE_URL}/orders")).json()
+    refs_a = {o["customerOrderReference"] for o in list_a}
+    refs_b = {o["customerOrderReference"] for o in list_b}
+    assert ref_a in refs_a and ref_a not in refs_b, \
+        f"alice should see ref_a={ref_a!r} but not in bob's list ({refs_b!r})"
+    assert ref_b in refs_b and ref_b not in refs_a, \
+        f"bob should see ref_b={ref_b!r} but not in alice's list ({refs_a!r})"
 
 
 if __name__ == "__main__":

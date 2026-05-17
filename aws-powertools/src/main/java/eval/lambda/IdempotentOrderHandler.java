@@ -1,13 +1,15 @@
 package eval.lambda;
 
-import static eval.lambda.OrderHandler.json;
-import static eval.lambda.OrderHandler.parseDelay;
+import static eval.lambda.LambdaResponses.MAPPER;
+import static eval.lambda.LambdaResponses.json;
+import static eval.lambda.LambdaResponses.parseDelay;
+import static eval.lambda.LambdaResponses.unauthorized;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import eval.lambda.auth.BasicAuth;
 import eval.lambda.dto.CreateOrderRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -34,8 +36,6 @@ import software.amazon.lambda.powertools.idempotency.persistence.dynamodb.Dynamo
 public class IdempotentOrderHandler
     implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
-  private static final ObjectMapper MAPPER = new ObjectMapper();
-
   private static final DynamoDbClient DDB =
       DynamoDbClient.builder().httpClientBuilder(UrlConnectionHttpClient.builder()).build();
 
@@ -55,11 +55,15 @@ public class IdempotentOrderHandler
 
   @Override
   public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent event, Context context) {
+    String tenant = BasicAuth.tenantOrNull(event.getHeaders());
+    if (tenant == null) {
+      return unauthorized();
+    }
     try {
       var req = MAPPER.readValue(event.getBody(), CreateOrderRequest.class);
-      var key = idempotencyKey(event);
+      var key = tenant + ":" + idempotencyKey(event);
       var delay = parseDelay(event);
-      return json(200, SERVICE.createOrderIdempotent(key, req, delay));
+      return json(200, SERVICE.createOrderIdempotent(key, tenant, req, delay));
     } catch (IdempotencyAlreadyInProgressException e) {
       return json(
           409,

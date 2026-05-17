@@ -7,7 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface OrderRepository extends JpaRepository<CustomerOrder, UUID> {
 
-  Optional<CustomerOrder> findByCustomerOrderReference(String customerOrderReference);
+  Optional<CustomerOrder> findByTenantAndCustomerOrderReference(
+      String tenant, String customerOrderReference);
 
-  List<CustomerOrder> findAllByOrderByIdAsc();
+  List<CustomerOrder> findAllByTenantOrderByIdAsc(String tenant);
 }

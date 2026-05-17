@@ -14,15 +14,28 @@ databaseChangeLog:
                     primaryKey: true
                     primaryKeyName: pk_customer_order
               - column:
+                  name: tenant
+                  type: VARCHAR(255)
+                  defaultValue: legacy
+                  constraints:
+                    nullable: false
+              - column:
                   name: customer_order_reference
                   type: VARCHAR(255)
                   constraints:
                     nullable: false
-                    unique: true
               - column:
                   name: supplier_order_reference
                   type: VARCHAR(255)
                   constraints:
                     nullable: false
                     unique: true
-
+        - createIndex:
+            tableName: customer_order
+            indexName: ux_customer_order_tenant_reference
+            unique: true
+            columns:
+              - column:
+                  name: tenant
+              - column:
+                  name: customer_order_reference

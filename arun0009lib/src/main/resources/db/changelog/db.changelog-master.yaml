@@ -3,4 +3,3 @@ databaseChangeLog:
       file: db/changelog/changes/001-create-customer-orders.yaml
   - include:
       file: db/changelog/changes/002-create-idempotent-table.yaml
-

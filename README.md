@@ -15,12 +15,20 @@ Every implementation MUST conform to these REST calls. The optional
 `delayMillis` query parameter slows the handler so duplicates can be tested
 while the first call is still in flight.
 
+All endpoints require HTTP Basic Auth. The IETF draft is silent on tenant
+isolation, but a multi-tenant API must not replay one tenant's response for
+another, so the **username is the tenant marker** — the password is not
+validated, any non-blank username is accepted, and the username is prefixed
+onto the stored idempotency key (`<username>:<Idempotency-Key>`).
+Unauthenticated requests get `401` before any idempotency lookup runs, so a
+cached response can never leak to an unauthenticated caller.
+
 The `arun0009lib` implementation is the reference implementation and is available at http://localhost:8080/v3/api-docs
 
 ### `POST /orders` — plain endpoint
 
 ```zsh
-curl -X POST 'http://localhost:8080/orders?delayMillis=100' \
+curl -u alice:x -X POST 'http://localhost:8080/orders?delayMillis=100' \
   -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: 0c5b8d7e-4f1c-4f6a-9f9b-1f4e1c5d6b7a' \
   -d '{"customerOrderReference":"customer-123"}'
@@ -32,7 +40,7 @@ the plain endpoint is not idempotent and rejects duplicates.
 ### `POST /orders/idempotent` — idempotent endpoint
 
 ```zsh
-curl -X POST 'http://localhost:8080/orders/idempotent?delayMillis=5000' \
+curl -u alice:x -X POST 'http://localhost:8080/orders/idempotent?delayMillis=5000' \
   -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: 0c5b8d7e-4f1c-4f6a-9f9b-1f4e1c5d6b7a' \
   -d '{"customerOrderReference":"customer-456"}'
@@ -45,8 +53,10 @@ or blank `Idempotency-Key` returns `400`.
 ### `GET /orders` — list
 
 ```zsh
-curl http://localhost:8080/orders
+curl -u alice:x http://localhost:8080/orders
 ```
+
+Returns only the orders created by the authenticated tenant.
 Each implementation should have two or more instances of the service running to demonstrate that idempotency works in high availability.
 
 # Implementations
@@ -120,6 +130,39 @@ Both implementations are evaluated against
 - **Concurrent duplicates**: §2.6 says the server SHOULD respond with a
   resource-conflict error. `aws-powertools` does this (`409`); `arun0009lib`
   blocks instead, which is arguably better UX but diverges from the spec.
+
+# Comparison against extra (non-IETF) requirements
+
+The IETF draft is silent on authentication and multi-tenant isolation, but
+both are mandatory for a real financial API. These rows cover the additional
+constraints enforced by both implementations.
+
+| Requirement | RFC 2119 | `arun0009lib` | `aws-powertools` |
+|---|---|---|---|
+| Endpoints require authentication | MUST | ✅ HTTP Basic via Spring Security | ✅ HTTP Basic checked in the Lambda handler |
+| Missing/invalid credentials → `401` | MUST | ✅ `401 WWW-Authenticate: Basic` | ✅ `401 WWW-Authenticate: Basic` |
+| 401 returned before any idempotency lookup | MUST | ✅ Security filter runs before the `@Idempotent` aspect | ✅ Handler short-circuits before `OrdersService` is called |
+| Username acts as tenant marker | MUST | ✅ `Authentication#getName()` | ✅ Parsed by `BasicAuth#tenantOrNull` |
+| Idempotency scoped per tenant | MUST | ✅ `TenantKeyFilter` rewrites header to `<user>:<key>` | ✅ Handler builds `<user>:<key>` before calling `@IdempotencyKey` |
+| Same key + body across tenants → independent records | MUST | ✅ each tenant gets a distinct response | ✅ each tenant gets a distinct response |
+| Order data scoped per tenant | SHOULD | ✅ composite unique index on `(tenant, customer_order_reference)` | ✅ composite DynamoDB key `(tenant, customerOrderReference)` |
+| `GET /orders` filtered by tenant | SHOULD | ✅ `findAllByTenantOrderByIdAsc` | ✅ DynamoDB `Query` keyed by tenant |
+| API documentation declares the auth scheme | SHOULD | ✅ `basicAuth` security scheme in OpenAPI | ❌ no spec published |
+
+### Key takeaways
+
+- **Both implementations refuse to leak cached responses.** Because the 401
+  is returned before the idempotency layer runs, an unauthenticated caller
+  can never receive a previously-cached response — even if they guess a
+  valid `Idempotency-Key`.
+- **Tenant isolation is achieved purely by key composition.** Neither the
+  arun0009 library nor AWS Lambda Powertools has built-in tenant scoping;
+  prefixing the stored key with the username is enough to make collisions
+  between tenants impossible.
+- **Password is intentionally not validated.** The username is the tenant
+  marker; the password slot exists only so that standard Basic-Auth clients
+  (curl, browsers, httpx, IntelliJ HTTP Client) keep working. Real
+  deployments would plug in an identity provider here.
 
 # Testing
 

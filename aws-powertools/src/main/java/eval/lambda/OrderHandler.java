@@ -1,10 +1,15 @@
 package eval.lambda;
 
+import static eval.lambda.LambdaResponses.MAPPER;
+import static eval.lambda.LambdaResponses.json;
+import static eval.lambda.LambdaResponses.parseDelay;
+import static eval.lambda.LambdaResponses.unauthorized;
+
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import eval.lambda.auth.BasicAuth;
 import eval.lambda.dto.CreateOrderRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -15,8 +20,6 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 public class OrderHandler
     implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
-  private static final ObjectMapper MAPPER = new ObjectMapper();
-
   private static final DynamoDbClient DDB =
       DynamoDbClient.builder().httpClientBuilder(UrlConnectionHttpClient.builder()).build();
 
@@ -25,14 +28,18 @@ public class OrderHandler
 
   @Override
   public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent event, Context context) {
+    String tenant = BasicAuth.tenantOrNull(event.getHeaders());
+    if (tenant == null) {
+      return unauthorized();
+    }
     var http = event.getRequestContext().getHttp();
     var route = http.getMethod() + " " + http.getPath();
     try {
       return switch (route) {
-        case "GET /orders" -> json(200, SERVICE.listOrders());
+        case "GET /orders" -> json(200, SERVICE.listOrders(tenant));
         case "POST /orders" -> {
           var req = MAPPER.readValue(event.getBody(), CreateOrderRequest.class);
-          yield json(200, SERVICE.createOrder(req, parseDelay(event)));
+          yield json(200, SERVICE.createOrder(tenant, req, parseDelay(event)));
         }
         default -> json(404, Map.of("error", "Not Found", "path", http.getPath()));
       };
@@ -49,25 +56,6 @@ public class OrderHandler
       return json(
           500,
           Map.of("error", e.getClass().getSimpleName(), "message", String.valueOf(e.getMessage())));
-    }
-  }
-
-  static long parseDelay(APIGatewayV2HTTPEvent event) {
-    var params = event.getQueryStringParameters();
-    if (params == null) return 10_000L;
-    var v = params.get("delayMillis");
-    return v == null ? 10_000L : Long.parseLong(v);
-  }
-
-  static APIGatewayV2HTTPResponse json(int status, Object body) {
-    try {
-      return APIGatewayV2HTTPResponse.builder()
-          .withStatusCode(status)
-          .withHeaders(Map.of("Content-Type", "application/json"))
-          .withBody(MAPPER.writeValueAsString(body))
-          .build();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 }
