@@ -13,25 +13,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderService {
 
   private final OrderRepository orderRepository;
-  private final OrderMapper orderMapper;
 
-  public List<OrderResponse> listOrders() {
-    return orderRepository.findAllByOrderByIdAsc().stream().map(orderMapper::toResponse).toList();
+  public List<OrderResponse> listOrders(String tenant) {
+    return orderRepository.findAllByTenantOrderByIdAsc(tenant).stream()
+        .map(OrderResponse::from)
+        .toList();
   }
 
   @Transactional
-  public OrderResponse createOrder(CreateOrderRequest request, long delayMillis) {
+  public OrderResponse createOrder(String tenant, CreateOrderRequest request, long delayMillis) {
     var customerOrderReference = request.customerOrderReference();
-
-    if (orderRepository.findByCustomerOrderReference(customerOrderReference).isPresent()) {
-      throw new OrderAlreadyExistsException(customerOrderReference);
-    }
-
     sleep(delayMillis);
-
-    var newOrder = new CustomerOrder(customerOrderReference, "SUP-" + UUID.randomUUID());
+    var newOrder = new CustomerOrder(tenant, customerOrderReference, "SUP-" + UUID.randomUUID());
     try {
-      return orderMapper.toResponse(orderRepository.save(newOrder));
+      return OrderResponse.from(orderRepository.saveAndFlush(newOrder));
     } catch (DataIntegrityViolationException ex) {
       throw new OrderAlreadyExistsException(customerOrderReference);
     }

@@ -7,33 +7,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.r3k.idempotency.evaluate.arun0009lib.order.OrderResponse;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 class ApplicationTests {
 
-  private final WebApplicationContext webApplicationContext;
+  // base64("testuser:ignored") — the username is the tenant marker; the password isn't validated.
+  private static final String BASIC_AUTH = "Basic dGVzdHVzZXI6aWdub3JlZA==";
+
+  private final MockMvc mockMvc;
   private final ObjectMapper objectMapper;
-  private MockMvc mockMvc;
 
   @Autowired
-  ApplicationTests(WebApplicationContext webApplicationContext, ObjectMapper objectMapper) {
-    this.webApplicationContext = webApplicationContext;
+  ApplicationTests(MockMvc mockMvc, ObjectMapper objectMapper) {
+    this.mockMvc = mockMvc;
     this.objectMapper = objectMapper;
-  }
-
-  @BeforeEach
-  void setUp() {
-    mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
   }
 
   @Test
@@ -43,7 +40,12 @@ class ApplicationTests {
 
     String firstResponse =
         mockMvc
-            .perform(post("/orders").contentType(MediaType.APPLICATION_JSON).content(requestBody))
+            .perform(
+                post("/orders")
+                    .param("delayMillis", "0")
+                    .header(HttpHeaders.AUTHORIZATION, BASIC_AUTH)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(requestBody))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.customerOrderReference").value("customer-123"))
             .andExpect(jsonPath("$.supplierOrderReference").exists())
@@ -61,11 +63,21 @@ class ApplicationTests {
     String requestBody = "{\"customerOrderReference\":\"customer-duplicate\"}";
 
     mockMvc
-        .perform(post("/orders").contentType(MediaType.APPLICATION_JSON).content(requestBody))
+        .perform(
+            post("/orders")
+                .param("delayMillis", "0")
+                .header(HttpHeaders.AUTHORIZATION, BASIC_AUTH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
         .andExpect(status().isOk());
 
     mockMvc
-        .perform(post("/orders").contentType(MediaType.APPLICATION_JSON).content(requestBody))
+        .perform(
+            post("/orders")
+                .param("delayMillis", "0")
+                .header(HttpHeaders.AUTHORIZATION, BASIC_AUTH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.title").value("Order Already Exists"))
         .andExpect(jsonPath("$.customerOrderReference").value("customer-duplicate"));
@@ -77,6 +89,8 @@ class ApplicationTests {
     mockMvc
         .perform(
             post("/orders")
+                .param("delayMillis", "0")
+                .header(HttpHeaders.AUTHORIZATION, BASIC_AUTH)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"customerOrderReference\":\"   \"}"))
         .andExpect(status().isBadRequest());
@@ -89,6 +103,7 @@ class ApplicationTests {
         .perform(
             post("/orders/idempotent")
                 .param("delayMillis", "0")
+                .header(HttpHeaders.AUTHORIZATION, BASIC_AUTH)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"customerOrderReference\":\"customer-no-header\"}"))
         .andExpect(status().isBadRequest());
@@ -101,6 +116,7 @@ class ApplicationTests {
         .perform(
             post("/orders/idempotent")
                 .param("delayMillis", "0")
+                .header(HttpHeaders.AUTHORIZATION, BASIC_AUTH)
                 .header("Idempotency-Key", "   ")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"customerOrderReference\":\"customer-blank-header\"}"))
@@ -119,6 +135,7 @@ class ApplicationTests {
             .perform(
                 post("/orders/idempotent")
                     .param("delayMillis", "0")
+                    .header(HttpHeaders.AUTHORIZATION, BASIC_AUTH)
                     .header("Idempotency-Key", key)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(requestBody))
@@ -134,6 +151,7 @@ class ApplicationTests {
             .perform(
                 post("/orders/idempotent")
                     .param("delayMillis", "0")
+                    .header(HttpHeaders.AUTHORIZATION, BASIC_AUTH)
                     .header("Idempotency-Key", key)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(requestBody))
@@ -148,7 +166,7 @@ class ApplicationTests {
 
     String listResponse =
         mockMvc
-            .perform(get("/orders"))
+            .perform(get("/orders").header(HttpHeaders.AUTHORIZATION, BASIC_AUTH))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()

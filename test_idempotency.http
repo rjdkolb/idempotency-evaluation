@@ -1,7 +1,9 @@
 # Assertions reference draft-ietf-httpapi-idempotency-key-header-07.
+# All requests require HTTP Basic Auth; the username is the tenant marker.
 
 ### Test without idempotency
 POST {{host}}/orders?delayMillis=100
+Authorization: Basic {{auth}}
 Idempotency-Key: {{$uuid}}
 Content-Type: application/json
 
@@ -22,6 +24,7 @@ client.log("setup idemKey=" + client.global.get("idemKeyFromSetup"));
 client.log("setup orderRef=" + client.global.get("orderRefFromSetup"));
 %}
 POST {{host}}/orders/idempotent?delayMillis=5000
+Authorization: Basic {{auth}}
 Idempotency-Key: {{idemKeyFromSetup}}
 Content-Type: application/json
 
@@ -40,6 +43,7 @@ Content-Type: application/json
 
 ### Idempotent call #2 while #1 is in flight (same key + same reference)
 POST {{host}}/orders/idempotent?delayMillis=0
+Authorization: Basic {{auth}}
 Idempotency-Key: {{idemKeyFromSetup}}
 Content-Type: application/json
 
@@ -62,6 +66,7 @@ Content-Type: application/json
 
 ### Idempotent call #3 after call #1 and #2 are done (same key + same reference)
 POST {{host}}/orders/idempotent
+Authorization: Basic {{auth}}
 Idempotency-Key: {{idemKeyFromSetup}}
 Content-Type: application/json
 
@@ -82,10 +87,12 @@ Content-Type: application/json
 
 ### List all
 GET {{host}}/orders
+Authorization: Basic {{auth}}
 
 
 ### Missing Idempotency-Key → expect 400 (SHOULD §2.7)
 POST {{host}}/orders/idempotent
+Authorization: Basic {{auth}}
 Content-Type: application/json
 
 {
@@ -110,6 +117,7 @@ client.global.set("reuseRefA", "refA-" + unique);
 client.global.set("reuseRefB", "refB-" + unique);
 %}
 POST {{host}}/orders/idempotent
+Authorization: Basic {{auth}}
 Idempotency-Key: {{reuseKey}}
 Content-Type: application/json
 
@@ -125,6 +133,7 @@ Content-Type: application/json
 
 ### Reuse key with a different payload — expect 422
 POST {{host}}/orders/idempotent
+Authorization: Basic {{auth}}
 Idempotency-Key: {{reuseKey}}
 Content-Type: application/json
 
@@ -137,6 +146,25 @@ Content-Type: application/json
     client.assert(
       response.status === 422,
       "expected 422 for reused key with different payload, got " + response.status
+    );
+  });
+%}
+
+
+### Missing auth → expect 401 (tenant separation requirement)
+POST {{host}}/orders/idempotent
+Idempotency-Key: {{$uuid}}
+Content-Type: application/json
+
+{
+  "customerOrderReference": "no-auth-{{$timestamp}}"
+}
+
+> {%
+  client.test("Missing Authorization returns 401", function () {
+    client.assert(
+      response.status === 401,
+      "expected 401 for missing Authorization, got " + response.status
     );
   });
 %}

@@ -1,29 +1,31 @@
 package io.r3k.idempotency.evaluate.arun0009lib.order;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import java.util.UUID;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CustomerOrder {
 
   @Id
   @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
   private UUID id;
 
-  @Column(nullable = false)
+  private String tenant;
+
   private String customerOrderReference;
 
-  @Column(nullable = false)
   private String supplierOrderReference;
 
-  protected CustomerOrder() {}
-
-  public CustomerOrder(String customerOrderReference, String supplierOrderReference) {
+  public CustomerOrder(
+      String tenant, String customerOrderReference, String supplierOrderReference) {
+    this.tenant = tenant;
     this.customerOrderReference = customerOrderReference;
     this.supplierOrderReference = supplierOrderReference;
   }
