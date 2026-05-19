@@ -4,6 +4,7 @@ updates:
     directory: "/arun0009lib"
     schedule:
       interval: "daily"
+      day: "friday"
     groups:
       gradle-all:
         patterns: ["*"]
@@ -12,6 +13,7 @@ updates:
     directory: "/aws-powertools"
     schedule:
       interval: "daily"
+      day: "friday"
     groups:
       gradle-all:
         patterns: ["*"]
@@ -20,6 +22,7 @@ updates:
     directory: "/arun0009lib"
     schedule:
       interval: "daily"
+      day: "friday"
     groups:
       docker-all:
         patterns: ["*"]
@@ -28,6 +31,8 @@ updates:
     directory: "/arun0009lib"
     schedule:
       interval: "daily"
+      day: "friday"
     groups:
       compose-all:
         patterns: ["*"]
+
