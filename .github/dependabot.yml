@@ -3,7 +3,7 @@ updates:
   - package-ecosystem: "gradle"
     directory: "/arun0009lib"
     schedule:
-      interval: "daily"
+      interval: "weekly"
       day: "friday"
     groups:
       gradle-all:
@@ -12,7 +12,7 @@ updates:
   - package-ecosystem: "gradle"
     directory: "/aws-powertools"
     schedule:
-      interval: "daily"
+      interval: "weekly"
       day: "friday"
     groups:
       gradle-all:
@@ -21,7 +21,7 @@ updates:
   - package-ecosystem: "docker"
     directory: "/arun0009lib"
     schedule:
-      interval: "daily"
+      interval: "weekly"
       day: "friday"
     groups:
       docker-all:
@@ -30,7 +30,7 @@ updates:
   - package-ecosystem: "docker-compose"
     directory: "/arun0009lib"
     schedule:
-      interval: "daily"
+      interval: "weekly"
       day: "friday"
     groups:
       compose-all:
