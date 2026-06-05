@@ -14,7 +14,7 @@ val jvmVersion = 25
 
 dependencyManagement {
 	dependencies {
-		dependency("io.github.arun0009:idempotent-rds:2.4.1")
+		dependency("io.github.arun0009:idempotent-rds:3.0.0")
 	}
 }
 
