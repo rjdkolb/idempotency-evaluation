@@ -5,9 +5,9 @@ lombok-mapstruct-binding = "0.2.0"
 testcontainers = "2.0.5"
 idempotent-rds = "2.4.1"
 springdoc-openapi = "3.0.3"
-spring-boot-plugin = "4.0.6"
+spring-boot-plugin = "4.1.0"
 spring-dependency-management-plugin = "1.1.7"
-graalvm-native-plugin = "1.1.1"
+graalvm-native-plugin = "1.1.2"
 
 [libraries]
 mapstruct = { module = "org.mapstruct:mapstruct", version.ref = "mapstruct" }
