@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM gradle:9.6.0-jdk25 AS build
+FROM gradle:9.6.1-jdk25 AS build
 WORKDIR /workspace
 COPY settings.gradle.kts build.gradle.kts ./
 COPY src ./src
