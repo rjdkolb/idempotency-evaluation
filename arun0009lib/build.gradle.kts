@@ -2,7 +2,7 @@ import org.gradle.api.tasks.compile.JavaCompile
 
 plugins {
 	java
-	id("org.springframework.boot") version "4.1.0"
+	id("org.springframework.boot") version "4.1.1"
 	id("io.spring.dependency-management") version "1.1.7"
 	id("com.diffplug.spotless") version "8.10.0"
 }
@@ -14,7 +14,7 @@ val jvmVersion = 25
 
 dependencyManagement {
 	dependencies {
-		dependency("io.github.arun0009:idempotent-rds:3.0.0")
+		dependency("io.github.arun0009:idempotent-rds:3.1.0")
 	}
 }
 
