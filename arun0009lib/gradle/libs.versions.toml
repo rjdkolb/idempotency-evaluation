@@ -7,7 +7,7 @@ idempotent-rds = "2.4.1"
 springdoc-openapi = "3.1.1"
 spring-boot-plugin = "4.1.1"
 spring-dependency-management-plugin = "1.1.7"
-graalvm-native-plugin = "1.1.12"
+graalvm-native-plugin = "1.1.14"
 
 [libraries]
 mapstruct = { module = "org.mapstruct:mapstruct", version.ref = "mapstruct" }
