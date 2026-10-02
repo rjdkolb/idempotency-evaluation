@@ -4,7 +4,7 @@ plugins {
 	java
 	id("org.springframework.boot") version "4.1.1"
 	id("io.spring.dependency-management") version "1.1.7"
-	id("com.diffplug.spotless") version "8.10.2"
+	id("com.diffplug.spotless") version "8.10.3"
 }
 
 group = "io.r3k.idempotency.evaluate"
@@ -14,7 +14,7 @@ val jvmVersion = 25
 
 dependencyManagement {
 	dependencies {
-		dependency("io.github.arun0009:idempotent-rds:3.1.0")
+		dependency("io.github.arun0009:idempotent-rds:3.1.1")
 	}
 }
 
