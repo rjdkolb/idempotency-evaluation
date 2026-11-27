@@ -11,7 +11,7 @@ x-app-watch: &app-watch
 
 services:
   postgres:
-    image: postgres:18-alpine
+    image: postgres:19-alpine
     profiles: ["app", "db"]
     ports:
       - "5432:5432"
